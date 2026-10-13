@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Queues: Queue ADT, Circular Queue, Priority Queue, Deque, Applications</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=Fraunces:opsz,wght@9..144,600;9..144,800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#4b4466; --ink2:#7d7699;
+  --lav:#dcd3f7; --peach:#ffdccb; --mint:#cdeedd; --sky:#cde5fb; --rose:#f8d2e0; --butter:#fcefc2;
+  --card:rgba(255,255,255,.66);
+  --edge:rgba(120,100,170,.28);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{
+  font-family:'Quicksand','Nunito','Segoe UI',system-ui,sans-serif;
+  color:var(--ink);
+  background:linear-gradient(135deg,#fdf5ef 0%,#f3eefc 50%,#e9f4fb 100%);
+}
+h1,h2,h3{font-family:'Fraunces','Georgia',serif;color:var(--ink);letter-spacing:-.01em}
+
+/* ---------- ambient background ---------- */
+.blob{position:fixed;border-radius:50%;filter:blur(70px);opacity:.55;z-index:0;animation:drift 18s ease-in-out infinite alternate}
+.b-a{width:420px;height:420px;background:var(--rose);top:-120px;left:-100px}
+.b-b{width:480px;height:480px;background:var(--sky);bottom:-160px;right:-120px;animation-delay:-6s}
+.b-c{width:340px;height:340px;background:var(--mint);top:40%;left:45%;animation-delay:-11s}
+@keyframes drift{to{transform:translate(60px,-40px) scale(1.15)}}
+
+/* ---------- deck + slides ---------- */
+.deck{position:fixed;inset:0;perspective:1800px;z-index:1}
+.slide{
+  position:absolute;inset:0;padding:60px 100px 88px;overflow-y:auto;overflow-x:hidden;
+  opacity:0;pointer-events:none;
+  transition:transform .85s cubic-bezier(.2,.8,.2,1),opacity .6s ease;
+  transform-origin:center;
+}
+.slide.before{transform:translateX(-55%) rotateY(38deg) scale(.82)}
+.slide.after{transform:translateX(55%) rotateY(-38deg) scale(.82)}
+.slide.active{opacity:1;pointer-events:auto;transform:none}
+.wrap{max-width:1120px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;justify-content:center;gap:22px}
+h2{font-size:clamp(28px,4vw,46px);font-weight:800;line-height:1.1;
+   background:linear-gradient(transparent 62%,var(--lav) 62%,var(--lav) 92%,transparent 92%);align-self:flex-start;padding:0 8px}
+.sub{color:var(--ink2);font-weight:600;font-size:clamp(14px,1.6vw,18px)}
+
+/* reveal when slide becomes active */
+.rv{opacity:0;transform:translateY(26px) scale(.98);transition:opacity .7s ease,transform .7s cubic-bezier(.2,.9,.3,1);transition-delay:calc(var(--d,0)*90ms + 250ms)}
+.active .rv{opacity:1;transform:none}
+
+.glass{background:var(--card);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border:1px solid rgba(255,255,255,.85);border-radius:24px;padding:22px 26px;
+  box-shadow:0 12px 34px rgba(120,100,170,.13)}
+.cols{display:grid;grid-template-columns:1.05fr 1fr;gap:26px;align-items:center}
+@media(max-width:900px){.cols{grid-template-columns:1fr}}
+
+.pts{list-style:none;display:flex;flex-direction:column;gap:13px;font-size:clamp(15px,1.7vw,19px);line-height:1.5;font-weight:600}
+.pts li{padding-left:34px;position:relative}
+.pts li::before{content:'';position:absolute;left:0;top:.38em;width:18px;height:18px;border-radius:6px;
+  background:var(--c,var(--lav));box-shadow:0 3px 0 var(--edge);transform:rotate(12deg)}
+.pts li:nth-child(5n+1){--c:var(--rose)}.pts li:nth-child(5n+2){--c:var(--sky)}
+.pts li:nth-child(5n+3){--c:var(--mint)}.pts li:nth-child(5n+4){--c:var(--butter)}.pts li:nth-child(5n+5){--c:var(--peach)}
+.pts b{color:#6a5aa8}
+
+.quote{background:linear-gradient(120deg,var(--lav),var(--rose));border-radius:20px;padding:16px 22px;font-weight:700;
+  font-size:clamp(14px,1.6vw,18px);text-align:center;box-shadow:0 6px 0 var(--edge)}
+
+/* ---------- 3D queue blocks ---------- */
+.row{display:flex;gap:16px;justify-content:center;align-items:center;min-height:140px;padding:48px 8px;position:relative;transform-style:preserve-3d;flex-wrap:wrap}
+.row::before{content:'';position:absolute;left:6%;right:6%;top:50%;height:6px;border-radius:6px;background:repeating-linear-gradient(90deg,var(--edge) 0 10px,transparent 10px 20px);opacity:.5;z-index:0}
+.row.noline::before{display:none}
+.blk{
+  position:relative;z-index:1;width:70px;height:70px;border-radius:18px;background:var(--c,var(--lav));
+  display:grid;place-items:center;font-size:22px;font-weight:800;color:var(--ink);flex:none;
+  box-shadow:0 8px 0 var(--edge),0 18px 26px rgba(120,100,170,.2),inset 0 3px 0 rgba(255,255,255,.75);
+  transform:rotateX(-10deg) rotateY(-14deg);
+}
+.blk.enter{animation:pop .55s cubic-bezier(.2,1.5,.4,1)}
+@keyframes pop{from{opacity:0;transform:translateY(-46px) scale(.3) rotateX(-10deg) rotateY(-14deg)}}
+.blk.leave{animation:out .5s forwards}
+@keyframes out{to{opacity:0;transform:translate(-70px,-20px) scale(.25) rotate(-24deg)}}
+.blk.pulse{animation:pulse .9s ease}
+@keyframes pulse{30%{transform:rotateX(-10deg) rotateY(-14deg) scale(1.3);filter:brightness(1.05)}}
+.blk.front::before,.blk.rear::after{
+  position:absolute;left:50%;transform:translateX(-50%);font-size:11px;font-weight:800;letter-spacing:.05em;color:#7a6cb0;
+  background:rgba(255,255,255,.85);padding:2px 9px;border-radius:10px;white-space:nowrap;box-shadow:0 2px 0 var(--edge)}
+.blk.front::before{content:'FRONT ↓';top:-33px}
+.blk.rear::after{content:'↑ REAR';bottom:-35px}
+.blk u{position:absolute;right:-7px;top:-9px;font-size:11px;font-weight:800;text-decoration:none;background:#fff;border-radius:9px;padding:1px 6px;box-shadow:0 2px 0 var(--edge)}
+.blk.p1{--c:#f6b9cd}.blk.p2{--c:#fbe3a1}.blk.p3{--c:#bcdcf7}
+.blk.pick{animation:glow .7s ease infinite alternate}
+@keyframes glow{to{box-shadow:0 8px 0 var(--edge),0 0 0 6px rgba(246,185,205,.7),0 18px 26px rgba(120,100,170,.2)}}
+
+/* ---------- buttons ---------- */
+.ctrl{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.btn{border:0;border-radius:999px;padding:11px 20px;font:700 15px 'Quicksand',system-ui,sans-serif;color:var(--ink);cursor:pointer;
+  background:var(--bc,#fff);box-shadow:0 5px 0 var(--edge),0 10px 18px rgba(120,100,170,.14);transition:transform .12s,box-shadow .12s}
+.btn:hover{transform:translateY(-2px)}
+.btn:active{transform:translateY(4px);box-shadow:0 1px 0 var(--edge)}
+.btn:focus-visible,.nav:focus-visible,.dot:focus-visible{outline:3px solid #9b8bd9;outline-offset:3px}
+.c1{--bc:var(--mint)}.c2{--bc:var(--rose)}.c3{--bc:var(--sky)}.c4{--bc:var(--lav)}.c5{--bc:var(--butter)}.c6{--bc:var(--peach)}
+select.btn{appearance:none;padding-right:20px}
+.status{min-height:50px;text-align:center;font-weight:700;font-size:clamp(14px,1.5vw,17px)}
+.status small{display:block;color:var(--ink2);font-weight:600;font-size:13px;margin-top:4px}
+
+/* ---------- title slide ---------- */
+.hero{display:grid;grid-template-columns:1.2fr 1fr;gap:20px;align-items:center}
+@media(max-width:900px){.hero{grid-template-columns:1fr}}
+h1{font-size:clamp(56px,10vw,128px);font-weight:800;line-height:.95;
+   background:linear-gradient(100deg,#9a86e0,#f19fc0 55%,#8cc4ee);-webkit-background-clip:text;background-clip:text;color:transparent;padding-bottom:8px}
+.chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
+.chip{padding:9px 16px;border-radius:999px;font-weight:700;font-size:clamp(13px,1.4vw,16px);background:var(--c);box-shadow:0 4px 0 var(--edge)}
+.scene{perspective:900px;height:340px;display:grid;place-items:center;position:relative}
+.cube{--s:190px;width:var(--s);height:var(--s);position:relative;transform-style:preserve-3d;animation:spin 18s linear infinite}
+.cube i{position:absolute;inset:0;display:grid;place-items:center;font-style:normal;font-family:'Fraunces',serif;font-weight:800;
+  font-size:calc(var(--s)*.2);color:var(--ink);border:3px solid rgba(255,255,255,.9);border-radius:calc(var(--s)*.1);background:var(--c);opacity:.94}
+.cube i:nth-child(1){transform:translateZ(calc(var(--s)/2));--c:var(--rose)}
+.cube i:nth-child(2){transform:rotateY(180deg) translateZ(calc(var(--s)/2));--c:var(--sky)}
+.cube i:nth-child(3){transform:rotateY(90deg) translateZ(calc(var(--s)/2));--c:var(--mint)}
+.cube i:nth-child(4){transform:rotateY(-90deg) translateZ(calc(var(--s)/2));--c:var(--butter)}
+.cube i:nth-child(5){transform:rotateX(90deg) translateZ(calc(var(--s)/2));--c:var(--lav)}
+.cube i:nth-child(6){transform:rotateX(-90deg) translateZ(calc(var(--s)/2));--c:var(--peach)}
+@keyframes spin{from{transform:rotateX(-22deg) rotateY(0)}to{transform:rotateX(-22deg) rotateY(360deg)}}
+.mini{position:absolute;--s:60px;animation-duration:9s}
+.mini.m1{left:2%;top:8%;animation-direction:reverse}.mini.m2{right:4%;top:62%}.mini.m3{left:14%;bottom:2%;--s:44px}
+.mini i{font-size:12px}
+.float{animation:bob 5s ease-in-out infinite}
+@keyframes bob{50%{translate:0 -14px}}
+
+/* ---------- flip cards ---------- */
+.ops{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:18px}
+.flip{perspective:900px;height:200px;cursor:pointer;border:0;background:none;font:inherit;color:inherit;text-align:left}
+.flip-in{position:relative;width:100%;height:100%;transform-style:preserve-3d;transition:transform .75s cubic-bezier(.3,1.2,.4,1)}
+.flip.on .flip-in{transform:rotateY(180deg)}
+.face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:22px;padding:18px;
+  display:flex;flex-direction:column;gap:8px;background:var(--c);box-shadow:0 8px 0 var(--edge),0 16px 26px rgba(120,100,170,.16)}
+.face h3{font-size:23px}
+.face p{font-size:14px;line-height:1.45;font-weight:600}
+.face.back{transform:rotateY(180deg);background:#fff;justify-content:center}
+.face code{font:700 13px/1.6 ui-monospace,Menlo,Consolas,monospace;background:var(--lav);border-radius:10px;padding:6px 9px;display:block}
+.hint{text-align:center;color:var(--ink2);font-weight:600;font-size:14px}
+
+/* ---------- steps ---------- */
+.steps{list-style:none;display:flex;flex-direction:column;gap:10px}
+.steps li{padding:11px 14px;border-radius:14px;background:rgba(255,255,255,.55);font-weight:600;font-size:15px;transition:.4s;border:2px solid transparent}
+.steps li.on{background:var(--mint)}
+.steps li.cur{border-color:#9b8bd9;transform:translateX(6px)}
+
+/* ---------- implementation ---------- */
+.impl{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px}
+.impl .glass{padding:16px 18px}
+.impl h3{font-size:19px;margin-bottom:6px}
+.impl p{font-size:14px;font-weight:600;line-height:1.45;color:var(--ink2)}
+.mn{display:flex;gap:6px;align-items:center;margin-top:10px;font-weight:800;color:var(--ink2)}
+.mn i{font-style:normal;background:var(--c,var(--lav));padding:6px 10px;border-radius:9px;box-shadow:0 3px 0 var(--edge);color:var(--ink)}
+.mn.arr i{border-radius:0;box-shadow:none;border:2px solid #fff;margin-right:-6px}
+table{width:100%;border-collapse:separate;border-spacing:0 8px;font-weight:600;font-size:clamp(13px,1.4vw,16px)}
+th{font-family:'Fraunces',serif;font-size:clamp(15px,1.7vw,19px);text-align:left;padding:10px 16px;background:var(--lav);}
+th:first-child{border-radius:14px 0 0 14px}th:last-child{border-radius:0 14px 14px 0;background:var(--sky)}
+td{padding:11px 16px;background:rgba(255,255,255,.7)}
+td:first-child{border-radius:14px 0 0 14px}td:last-child{border-radius:0 14px 14px 0}
+.o1{display:inline-block;background:var(--mint);padding:3px 10px;border-radius:10px;font-weight:800}
+
+/* ---------- circular queue ---------- */
+.ring{position:relative;width:360px;height:360px;margin:0 auto;transform-style:preserve-3d}
+.ring::before{content:'';position:absolute;inset:50px;border-radius:50%;border:6px dashed var(--edge);opacity:.45}
+.slot{position:absolute;width:68px;height:68px;margin:-34px 0 0 -34px;border-radius:50%;background:rgba(255,255,255,.7);
+  display:grid;place-items:center;font-weight:800;font-size:21px;box-shadow:0 6px 0 var(--edge),0 12px 18px rgba(120,100,170,.14);transition:background .4s,transform .3s}
+.slot em{position:absolute;left:50%;top:-1px;transform:translate(-50%,-100%);font-style:normal;font-size:11px;color:var(--ink2);font-weight:700;display:none}
+.slot.full{background:var(--c,var(--rose))}
+.slot.pop{animation:pop2 .5s cubic-bezier(.2,1.5,.4,1)}
+@keyframes pop2{from{transform:scale(.4)}}
+.slot .tg{position:absolute;top:100%;margin-top:4px;font-size:10px;font-weight:800;color:#7a6cb0;white-space:nowrap;background:rgba(255,255,255,.9);border-radius:8px;padding:1px 7px}
+.slot .ix{position:absolute;bottom:5px;font-size:9px;color:var(--ink2);font-weight:700}
+.slot.isF{outline:4px solid #b7e0cd}.slot.isR{outline:4px solid #f4bfd2}.slot.isF.isR{outline:4px solid #c9b9f0}
+.ctr{position:absolute;inset:0;display:grid;place-content:center;text-align:center;font-weight:800;pointer-events:none}
+.ctr b{font-family:'Fraunces',serif;font-size:40px}.ctr span{font-size:13px;color:var(--ink2);font-weight:700}
+.formula{font:700 15px ui-monospace,Menlo,Consolas,monospace;background:var(--butter);padding:10px 14px;border-radius:14px;text-align:center;box-shadow:0 4px 0 var(--edge)}
+
+/* ---------- applications ---------- */
+.apps{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:18px}
+.app{border-radius:24px;padding:22px 18px;background:var(--c);box-shadow:0 9px 0 var(--edge),0 18px 28px rgba(120,100,170,.16);transition:transform .15s ease-out;transform-style:preserve-3d}
+.app .ic{font-size:44px;display:block;transform:translateZ(40px);margin-bottom:8px;filter:drop-shadow(0 8px 6px rgba(80,60,130,.25))}
+.app h3{font-size:20px;margin-bottom:6px;transform:translateZ(22px)}
+.app p{font-weight:600;font-size:14px;line-height:1.45;transform:translateZ(12px)}
+
+/* ---------- pros / cons ---------- */
+.pc{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+@media(max-width:800px){.pc{grid-template-columns:1fr}}
+.pc h3{font-size:24px;margin-bottom:12px}
+.fix{background:linear-gradient(110deg,var(--mint),var(--sky));border-radius:22px;padding:18px 24px;font-weight:700;font-size:clamp(14px,1.6vw,18px);box-shadow:0 7px 0 var(--edge)}
+.fix span{display:block;color:var(--ink2);font-weight:600;font-size:14px;margin-top:6px}
+
+/* ---------- chrome: nav, dots, notes ---------- */
+.nav{position:fixed;top:50%;z-index:20;width:58px;height:58px;margin-top:-29px;border-radius:50%;border:0;cursor:pointer;
+  background:rgba(255,255,255,.8);backdrop-filter:blur(10px);font-size:26px;color:var(--ink);
+  box-shadow:0 6px 0 var(--edge),0 14px 24px rgba(120,100,170,.2);transition:transform .15s,opacity .3s}
+.nav:hover{transform:scale(1.1)}.nav:active{transform:scale(.95)}
+.nav:disabled{opacity:.3;cursor:default;transform:none}
+#prev{left:22px}#next{right:22px}
+.bar{position:fixed;left:0;right:0;bottom:18px;z-index:20;display:flex;justify-content:center;align-items:center;gap:14px;pointer-events:none}
+.bar>*{pointer-events:auto}
+.dots{display:flex;gap:8px;background:rgba(255,255,255,.7);padding:9px 14px;border-radius:999px;backdrop-filter:blur(10px);box-shadow:0 4px 0 var(--edge)}
+.dot{width:11px;height:11px;border-radius:50%;border:0;background:#d6cdee;cursor:pointer;transition:.3s;padding:0}
+.dot.on{width:30px;border-radius:8px;background:#a592e6}
+.count{font-weight:800;font-size:14px;color:var(--ink2);background:rgba(255,255,255,.7);padding:8px 14px;border-radius:999px;box-shadow:0 4px 0 var(--edge)}
+.tool{position:fixed;top:16px;right:18px;z-index:20;display:flex;gap:10px}
+.tool .btn{padding:8px 14px;font-size:13px}
+.notes{position:fixed;left:50%;bottom:70px;z-index:19;width:min(860px,calc(100% - 150px));transform:translate(-50%,30px);opacity:0;pointer-events:none;
+  background:rgba(255,255,255,.93);border-radius:22px;padding:16px 22px;box-shadow:0 10px 0 var(--edge),0 24px 40px rgba(120,100,170,.25);transition:.4s;max-height:38vh;overflow:auto}
+.notes.show{transform:translate(-50%,0);opacity:1;pointer-events:auto}
+.notes h4{font-family:'Fraunces',serif;margin-bottom:6px;font-size:16px}
+.notes p{font-size:15px;line-height:1.6;font-weight:600}
+
+@media(max-width:800px){
+  .slide{padding:64px 54px 96px}
+  .nav{width:42px;height:42px;margin-top:-21px;font-size:20px}#prev{left:6px}#next{right:6px}
+  .ring{transform:scale(.8)}.notes{width:calc(100% - 40px)}
+}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.01s!important;transition-duration:.01s!important}}
+</style>
+</head>
+<body>
+<div class="blob b-a"></div><div class="blob b-b"></div><div class="blob b-c"></div>
+
+<main class="deck" id="deck">
+
+<!-- 1 · TITLE -->
+<section class="slide" data-title="Queues">
+  <div class="wrap">
+    <div class="hero">
+      <div>
+        <h1 class="rv">Queues</h1>
+        <div class="chips">
+          <span class="chip rv" style="--c:var(--rose);--d:1">Queue ADT</span>
+          <span class="chip rv" style="--c:var(--sky);--d:2">Circular queue</span>
+          <span class="chip rv" style="--c:var(--mint);--d:3">Priority queue</span>
+          <span class="chip rv" style="--c:var(--butter);--d:4">Deque (Double-ended queue)</span>
+          <span class="chip rv" style="--c:var(--peach);--d:5">Applications</span>
+        </div>
+      </div>
+      <div class="scene rv" style="--d:2">
+        <div class="cube"><i>FIFO</i><i>Queue</i><i>Front</i><i>Rear</i><i>ADT</i><i>O(1)</i></div>
+        <div class="cube mini m1 float"><i>10</i><i>20</i><i>30</i><i>40</i><i>↑</i><i>↓</i></div>
+        <div class="cube mini m2 float"><i>In</i><i>Out</i><i>In</i><i>Out</i><i>→</i><i>←</i></div>
+        <div class="cube mini m3 float"><i>F</i><i>R</i><i>F</i><i>R</i><i>•</i><i>•</i></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 2 · QUEUE ADT -->
+<section class="slide" data-title="What is Queue ADT?">
+  <div class="wrap">
+    <h2 class="rv">What is Queue ADT?</h2>
+    <div class="cols">
+      <ul class="pts glass rv" style="--d:1">
+        <li>A queue is a <b>linear abstract data type</b> that follows the <b>FIFO</b> principle.</li>
+        <li>FIFO = <b>First In, First Out</b>: the element inserted first is removed first.</li>
+        <li><b>Insertion</b> takes place at the <b>rear</b> end, <b>deletion</b> at the <b>front</b> end.</li>
+        <li><b>ADT</b> = Abstract Data Type: it defines the operations without specifying how they are implemented internally.</li>
+        <li>A queue can be implemented using an <b>array</b> or a <b>linked list</b>.</li>
+      </ul>
+      <div class="glass rv" style="--d:2" data-tilt>
+        <div class="row">
+          <div class="blk front" style="--c:var(--rose)">10</div>
+          <div class="blk" style="--c:var(--sky)">20</div>
+          <div class="blk" style="--c:var(--mint)">30</div>
+          <div class="blk rear" style="--c:var(--butter)">40</div>
+        </div>
+        <p class="sub" style="text-align:center">Like people standing in a line at a ticket counter. 10 came first, so 10 leaves first, then 20 becomes the front.</p>
+      </div>
+    </div>
+    <div class="quote rv" style="--d:3">The most important characteristic of a queue: insertion happens at the rear, while deletion happens at the front.</div>
+  </div>
+</section>
+
+<!-- 3 · OPERATIONS -->
+<section class="slide" data-title="Basic Operations of Queue ADT">
+  <div class="wrap">
+    <h2 class="rv">Basic Operations of Queue ADT</h2>
+    <div class="ops">
+      <button class="flip rv" style="--d:1"><div class="flip-in">
+        <div class="face" style="--c:var(--rose)"><h3>Enqueue</h3><p>Inserts a new element into the queue. The new element is always inserted at the rear end.</p></div>
+        <div class="face back"><code>Before: 10 → 20 → 30</code><code>Enqueue(40)</code><code>After: 10 → 20 → 30 → 40</code></div>
+      </div></button>
+      <button class="flip rv" style="--d:2"><div class="flip-in">
+        <div class="face" style="--c:var(--sky)"><h3>Dequeue</h3><p>Removes an element from the queue. The element at the front is removed first.</p></div>
+        <div class="face back"><code>Before: 10 → 20 → 30 → 40</code><code>Dequeue()</code><code>After: 20 → 30 → 40</code><p>10 is deleted because it was at the front.</p></div>
+      </div></button>
+      <button class="flip rv" style="--d:3"><div class="flip-in">
+        <div class="face" style="--c:var(--mint)"><h3>Peek / Front</h3><p>Returns the front element without removing it from the queue.</p></div>
+        <div class="face back"><code>Queue: 10 → 20 → 30</code><code>peek() = 10</code><p>10 is not deleted from the queue.</p></div>
+      </div></button>
+      <button class="flip rv" style="--d:4"><div class="flip-in">
+        <div class="face" style="--c:var(--butter)"><h3>isEmpty</h3><p>Checks whether the queue contains any elements or not.</p></div>
+        <div class="face back"><code>Queue: [ ]</code><code>isEmpty() = true</code></div>
+      </div></button>
+      <button class="flip rv" style="--d:5"><div class="flip-in">
+        <div class="face" style="--c:var(--peach)"><h3>isFull</h3><p>Checks whether the queue has reached its maximum capacity.</p></div>
+        <div class="face back"><p>Used in a fixed-size queue.</p><p>A linked-list-based queue generally has no fixed capacity, although memory limits may apply.</p></div>
+      </div></button>
+    </div>
+    <p class="hint rv" style="--d:6">Click a card to flip it.</p>
+    <div class="quote rv" style="--d:6">These operations help us insert, delete, access, and manage elements efficiently.</div>
+  </div>
+</section>
+
+<!-- 4 · WORKING -->
+<section class="slide" data-title="Working of Queue ADT">
+  <div class="wrap">
+    <h2 class="rv">Working of Queue ADT</h2>
+    <div class="cols">
+      <div class="glass rv" style="--d:1">
+        <ol class="steps" id="steps">
+          <li>Step 1: Initially, the queue is empty.</li>
+          <li>Step 2: Enqueue(10), Enqueue(20), Enqueue(30).</li>
+          <li>Step 3: Dequeue(): 10 is removed because it was inserted first.</li>
+          <li>Step 4: Result: deleted element = 10, front element = 20.</li>
+        </ol>
+        <div class="ctrl" style="margin-top:16px"><button class="btn c4" id="auto1">▶ Play this example</button></div>
+      </div>
+      <div class="glass rv" style="--d:2">
+        <div class="row" id="q1"></div>
+        <div class="status" id="s1"></div>
+        <div class="ctrl">
+          <button class="btn c1" id="e1">Enqueue</button>
+          <button class="btn c2" id="d1">Dequeue</button>
+          <button class="btn c3" id="p1">Peek</button>
+          <button class="btn c5" id="r1">Reset</button>
+        </div>
+      </div>
+    </div>
+    <div class="quote rv" style="--d:3">The first inserted element is the first one removed. Therefore, the queue follows FIFO.</div>
+  </div>
+</section>
+
+<!-- 5 · IMPLEMENTATION -->
+<section class="slide" data-title="Implementation of Queue ADT">
+  <div class="wrap">
+    <h2 class="rv">Implementation of Queue ADT</h2>
+    <div class="impl">
+      <div class="glass rv" style="--d:1" data-tilt><h3>Array</h3><p>Elements are stored in a contiguous block of memory.</p>
+        <div class="mn arr"><i style="--c:var(--rose)">10</i><i style="--c:var(--sky)">20</i><i style="--c:var(--mint)">30</i><i style="--c:var(--butter)">40</i></div></div>
+      <div class="glass rv" style="--d:2" data-tilt><h3>Linked list</h3><p>Elements are stored in nodes connected through pointers.</p>
+        <div class="mn"><i style="--c:var(--rose)">10</i>→<i style="--c:var(--sky)">20</i>→<i style="--c:var(--mint)">30</i></div></div>
+      <div class="glass rv" style="--d:3" data-tilt><h3>C++ STL</h3><p>Use the queue container provided by the C++ Standard Template Library.</p>
+        <div class="mn"><i style="--c:var(--lav)">queue&lt;int&gt; q;</i></div></div>
+    </div>
+    <div class="glass rv" style="--d:4;padding:10px 18px">
+      <table>
+        <tr><th>Array-based queue</th><th>Linked-list-based queue</th></tr>
+        <tr><td>Uses an array to store elements.</td><td>Uses connected nodes to store elements.</td></tr>
+        <tr><td>Usually has a fixed capacity.</td><td>Can grow dynamically as memory permits.</td></tr>
+        <tr><td>May waste unused allocated space.</td><td>Allocates memory as new nodes are added.</td></tr>
+      </table>
+    </div>
+    <div class="quote rv" style="--d:5">With a circular array or a linked list, enqueue and dequeue can both take <span class="o1">O(1)</span> time. A simple array that needs shifting can make dequeue <span class="o1">O(n)</span>.</div>
+  </div>
+</section>
+
+<!-- 6 · CIRCULAR QUEUE -->
+<section class="slide" data-title="Circular Queue">
+  <div class="wrap">
+    <h2 class="rv">Circular Queue</h2>
+    <div class="cols">
+      <div class="rv" style="--d:1;display:flex;flex-direction:column;gap:16px">
+        <ul class="pts glass">
+          <li>The array is treated as a <b>circle</b>.</li>
+          <li>After reaching the end of the array, insertion <b>wraps around</b> to the beginning to use the available space.</li>
+          <li>This solves the wasted-space limitation of a simple array queue.</li>
+        </ul>
+        <div class="formula">rear = (rear + 1) % size<br>front = (front + 1) % size</div>
+      </div>
+      <div class="glass rv" style="--d:2">
+        <div class="ring" id="ring"><div class="ctr"><b id="cc">0/6</b><span>elements</span></div></div>
+        <div class="status" id="sc"></div>
+        <div class="ctrl">
+          <button class="btn c1" id="ec">Enqueue</button>
+          <button class="btn c2" id="dc">Dequeue</button>
+          <button class="btn c4" id="wc">Show wrap-around</button>
+          <button class="btn c5" id="rc">Reset</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 7 · PRIORITY QUEUE -->
+<section class="slide" data-title="Priority Queue">
+  <div class="wrap">
+    <h2 class="rv">Priority Queue</h2>
+    <div class="cols">
+      <ul class="pts glass rv" style="--d:1">
+        <li>Every element has a <b>priority</b> along with its value.</li>
+        <li>The element with the <b>highest priority</b> is removed first, not necessarily the one inserted first.</li>
+        <li>Elements with the <b>same priority</b> are served in FIFO order.</li>
+      </ul>
+      <div class="glass rv" style="--d:2">
+        <div class="row noline" id="pq"></div>
+        <div class="status" id="sp"></div>
+        <div class="ctrl">
+          <select class="btn c3" id="pp" aria-label="Priority">
+            <option value="1">Priority 1 (highest)</option><option value="2" selected>Priority 2</option><option value="3">Priority 3 (lowest)</option>
+          </select>
+          <button class="btn c1" id="ep">Enqueue</button>
+          <button class="btn c2" id="dp">Dequeue</button>
+          <button class="btn c4" id="xp">Load example</button>
+          <button class="btn c5" id="rp">Reset</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 8 · DEQUE -->
+<section class="slide" data-title="Deque (Double-ended queue)">
+  <div class="wrap">
+    <h2 class="rv">Deque (Double-ended queue)</h2>
+    <div class="cols">
+      <div class="rv" style="--d:1;display:flex;flex-direction:column;gap:16px">
+        <ul class="pts glass">
+          <li>Insertion and deletion are allowed at <b>both ends</b>: front and rear.</li>
+          <li><b>insertFront()</b> and <b>insertRear()</b> add elements.</li>
+          <li><b>deleteFront()</b> and <b>deleteRear()</b> remove elements.</li>
+        </ul>
+      </div>
+      <div class="glass rv" style="--d:2">
+        <div class="row" id="dq"></div>
+        <div class="status" id="sd"></div>
+        <div class="ctrl">
+          <button class="btn c1" id="if">Insert front</button>
+          <button class="btn c3" id="ir">Insert rear</button>
+          <button class="btn c2" id="df">Delete front</button>
+          <button class="btn c6" id="dr">Delete rear</button>
+          <button class="btn c5" id="rd">Reset</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 9 · APPLICATIONS -->
+<section class="slide" data-title="Applications of Queue ADT">
+  <div class="wrap">
+    <h2 class="rv">Applications of Queue ADT</h2>
+    <div class="apps">
+      <div class="app rv" style="--c:var(--rose);--d:1" data-tilt><span class="ic">🖥️</span><h3>CPU scheduling</h3><p>Manages processes waiting for CPU execution.</p></div>
+      <div class="app rv" style="--c:var(--sky);--d:2" data-tilt><span class="ic">🖨️</span><h3>Printer</h3><p>Processes print jobs in the order they are received.</p></div>
+      <div class="app rv" style="--c:var(--mint);--d:3" data-tilt><span class="ic">📡</span><h3>Network buffering</h3><p>Temporarily stores data packets and requests while they wait to be processed.</p></div>
+      <div class="app rv" style="--c:var(--butter);--d:4" data-tilt><span class="ic">🌳</span><h3>BFS</h3><p>Visits graph or tree nodes level by level.</p></div>
+      <div class="app rv" style="--c:var(--peach);--d:5" data-tilt><span class="ic">🎫</span><h3>Customer service</h3><p>Serves customers in the order of arrival.</p></div>
+    </div>
+    <div class="quote rv" style="--d:6">Queues are useful wherever tasks or elements need to be processed in a particular order.</div>
+  </div>
+</section>
+
+<!-- 10 · ADVANTAGES & LIMITATIONS -->
+<section class="slide" data-title="Advantages and Limitations">
+  <div class="wrap">
+    <h2 class="rv">Advantages and Limitations</h2>
+    <div class="pc">
+      <div class="glass rv" style="--d:1;background:rgba(205,238,221,.6)" data-tilt>
+        <h3>Advantages</h3>
+        <ul class="pts">
+          <li>Maintains the order of elements according to the FIFO principle.</li>
+          <li>Useful for scheduling tasks and managing requests.</li>
+          <li>Efficient insertion and deletion when implemented appropriately.</li>
+        </ul>
+      </div>
+      <div class="glass rv" style="--d:2;background:rgba(248,210,224,.6)" data-tilt>
+        <h3>Limitations</h3>
+        <ul class="pts">
+          <li>A simple fixed-size array queue has limited capacity.</li>
+          <li>An ordinary linear array implementation may waste space after deletions unless managed carefully.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="fix rv" style="--d:3">These limitations can be addressed by using circular queues or linked-list-based implementations.
+      <span>Circular queue: after reaching the end of the array, insertion wraps around to the beginning to use the available space.</span></div>
+  </div>
+</section>
+
+</main>
+
+<div class="tool">
+  <button class="btn c4" id="notesBtn" aria-pressed="false">🎤 Script (N)</button>
+  <button class="btn c3" id="fsBtn">⛶ Fullscreen (F)</button>
+</div>
+<div class="notes" id="notes"><h4>Speaker script</h4><p id="notesText"></p></div>
+<button class="nav" id="prev" aria-label="Previous slide">‹</button>
+<button class="nav" id="next" aria-label="Next slide">›</button>
+<div class="bar"><div class="dots" id="dots"></div><div class="count" id="count"></div></div>
+
+<script>
+const $=s=>document.querySelector(s), sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+/* ================= speaker scripts ================= */
+const NOTES=[
+ "Today we will cover the Queue ADT, circular queue, priority queue, deque, and the applications of queues.",
+ "First, let us understand what a Queue ADT is. A queue is a linear abstract data type that follows the FIFO principle. FIFO stands for First In, First Out. It means that the element inserted first will be removed first. In a queue, insertion takes place at the rear end, and deletion takes place at the front end. Here, ADT stands for Abstract Data Type. It defines the operations that can be performed on data without specifying exactly how those operations are implemented internally. A queue can be implemented using an array or a linked list. The most important characteristic of a queue is that insertion happens at the rear, while deletion happens at the front.",
+ "Now, let us discuss the basic operations of a queue. There are five important operations. Enqueue inserts a new element at the rear end. Dequeue removes the element at the front. Peek returns the front element without removing it. isEmpty checks whether the queue contains any elements. isFull checks whether the queue has reached its maximum capacity; it is used in fixed-size queues. These operations help us insert, delete, access, and manage elements efficiently.",
+ "Now, let us understand the working of a queue with an example. Suppose the queue is initially empty. First, we insert 10, then 20, and then 30 using the enqueue operation. Next, if we perform the dequeue operation, the element 10 will be removed because it was inserted first. The remaining elements will be 20 and 30. As we can see, the first inserted element is the first one to be removed. Therefore, the queue follows FIFO.",
+ "A queue is an abstract data type, which means it defines the behavior and operations of a queue. We can implement it using arrays and linked lists. In an array-based implementation, elements are stored in a contiguous block of memory. In a linked-list-based implementation, elements are stored in nodes connected through pointers. A queue can also be implemented using the queue container of the C++ STL. In a properly implemented queue using a circular array or a linked list, enqueue and dequeue can both take O(1) time. In a simple array implementation, if shifting is needed, dequeue can take O(n).",
+ "A circular queue treats the array as a circle. After reaching the end of the array, insertion wraps around to the beginning to use the available space, using rear = (rear + 1) % size. This solves the wasted-space limitation of the simple array queue.",
+ "In a priority queue, every element has a priority. The element with the highest priority is removed first, not necessarily the element inserted first. If two elements have the same priority, they are served in FIFO order.",
+ "A deque, or double-ended queue, allows insertion and deletion at both ends, the front and the rear. The four operations are insertFront, insertRear, deleteFront, and deleteRear.",
+ "Now, let us discuss some real-life applications of a queue. First, CPU scheduling: queues organize processes waiting for CPU execution. Second, printer scheduling: print jobs are managed in the order they are received. Third, network communication: queues buffer packets and requests while they wait to be processed. Fourth, Breadth-First Search: queues visit graph or tree nodes level by level. Finally, customer service systems: customers are served in the order in which they arrive. Therefore, queues are useful wherever tasks or elements need to be processed in a particular order.",
+ "Queues have several advantages. They maintain the order of elements according to the FIFO principle. They are useful for scheduling tasks and managing requests. They also allow efficient insertion and deletion when implemented appropriately. However, a simple fixed-size array queue has limited capacity, and an ordinary linear array may waste space after deletions unless managed carefully. These limitations can be addressed by using circular queues or linked-list-based implementations."
+];
+
+/* ================= deck engine ================= */
+const slides=[...document.querySelectorAll('.slide')];
+const dotsEl=$('#dots'); let cur=0;
+slides.forEach((s,i)=>{const d=document.createElement('button');d.className='dot';d.setAttribute('aria-label','Go to slide '+(i+1)+': '+s.dataset.title);d.title=s.dataset.title;d.onclick=()=>go(i);dotsEl.append(d)});
+function go(n){
+  if(n<0||n>=slides.length)return; cur=n;
+  slides.forEach((s,i)=>{s.classList.toggle('active',i===n);s.classList.toggle('before',i<n);s.classList.toggle('after',i>n);s.scrollTop=0});
+  [...dotsEl.children].forEach((d,i)=>d.classList.toggle('on',i===n));
+  $('#count').textContent=(n+1)+' / '+slides.length;
+  $('#prev').disabled=n===0;$('#next').disabled=n===slides.length-1;
+  $('#notesText').textContent=NOTES[n]||'';
+  history.replaceState(null,'','#'+(n+1));
+}
+$('#prev').onclick=()=>go(cur-1);$('#next').onclick=()=>go(cur+1);
+addEventListener('keydown',e=>{
+  if(['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName))return;
+  if(e.key==='ArrowRight'||e.key==='PageDown'){go(cur+1)}
+  else if(e.key==='ArrowLeft'||e.key==='PageUp'){go(cur-1)}
+  else if(e.key==='Home')go(0); else if(e.key==='End')go(slides.length-1);
+  else if(e.key==='n'||e.key==='N')toggleNotes();
+  else if(e.key==='f'||e.key==='F')toggleFS();
+});
+let tx=null;
+addEventListener('touchstart',e=>{tx=e.touches[0].clientX},{passive:true});
+addEventListener('touchend',e=>{if(tx===null)return;const dx=e.changedTouches[0].clientX-tx;if(Math.abs(dx)>70)go(cur+(dx<0?1:-1));tx=null});
+function toggleNotes(){const on=$('#notes').classList.toggle('show');$('#notesBtn').setAttribute('aria-pressed',on)}
+function toggleFS(){document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen?.()}
+$('#notesBtn').onclick=toggleNotes;$('#fsBtn').onclick=toggleFS;
+
+/* 3D tilt on hover */
+document.querySelectorAll('[data-tilt]').forEach(el=>{
+  el.addEventListener('mousemove',e=>{const r=el.getBoundingClientRect();const x=(e.clientX-r.left)/r.width-.5,y=(e.clientY-r.top)/r.height-.5;
+    el.style.transform=`perspective(800px) rotateX(${-y*12}deg) rotateY(${x*14}deg) translateY(-4px)`;});
+  el.addEventListener('mouseleave',()=>{el.style.transform=''});
+});
+/* flip cards */
+document.querySelectorAll('.flip').forEach(f=>f.addEventListener('click',()=>f.classList.toggle('on')));
+
+/* ================= shared block helpers ================= */
+const PAL=['#f8d2e0','#dcd3f7','#cde5fb','#cdeedd','#fcefc2','#ffdccb'];let ci=0;
+function mk(label){const d=document.createElement('div');d.className='blk enter';d.style.setProperty('--c',PAL[ci++%PAL.length]);d.innerHTML='<b>'+label+'</b>';return d}
+const live=c=>[...c.children].filter(b=>!b.classList.contains('leave'));
+function tag(c){const l=live(c);l.forEach((b,i)=>{b.classList.toggle('front',i===0);b.classList.toggle('rear',i===l.length-1)})}
+function drop(b,c){b.classList.remove('front','rear');b.classList.add('leave');tag(c);setTimeout(()=>b.remove(),500)}
+function put(c,label,front){const b=mk(label);front?c.prepend(b):c.append(b);tag(c);return b}
+
+/* ================= Demo 1: Queue ADT ================= */
+const q1=$('#q1'),MAX=6;let v1=10,busy1=false;
+function st1(m){const n=live(q1).length;$('#s1').innerHTML=m+`<small>isEmpty() = ${n===0} &nbsp;|&nbsp; isFull() = ${n>=MAX} &nbsp;|&nbsp; size = ${n}</small>`}
+function enq1(){if(live(q1).length>=MAX){st1('Queue is full: cannot enqueue');return false}put(q1,v1);st1(`Enqueue(${v1}): inserted at REAR`);v1+=10;return true}
+function deq1(){const l=live(q1);if(!l.length){st1('Queue is empty: nothing to dequeue');return}
+  const f=l[0],val=f.textContent;drop(f,q1);const nx=live(q1)[0];st1(`Dequeue(): removed ${val} from FRONT`+(nx?`. New front = ${nx.textContent}`:''))}
+function peek1(){const l=live(q1);if(!l.length){st1('Queue is empty: nothing to peek');return}
+  const f=l[0];f.classList.add('pulse');setTimeout(()=>f.classList.remove('pulse'),900);st1(`peek() = ${f.textContent}. The queue is unchanged`)}
+function reset1(){q1.innerHTML='';v1=10;st1('Queue is empty');setSteps(-1)}
+function setSteps(i){[...document.querySelectorAll('#steps li')].forEach((li,k)=>{li.classList.toggle('on',k<=i);li.classList.toggle('cur',k===i)})}
+$('#e1').onclick=()=>{if(!busy1)enq1()};$('#d1').onclick=()=>{if(!busy1)deq1()};
+$('#p1').onclick=()=>{if(!busy1)peek1()};$('#r1').onclick=()=>{if(!busy1)reset1()};
+$('#auto1').onclick=async()=>{
+  if(busy1)return;busy1=true;reset1();setSteps(0);st1('Queue is empty');await sleep(900);
+  setSteps(1);for(let i=0;i<3;i++){enq1();await sleep(800)}
+  await sleep(500);setSteps(2);deq1();await sleep(1100);
+  setSteps(3);st1('Deleted element = 10 &nbsp;|&nbsp; Front element = 20');busy1=false;
+};
+reset1();
+
+/* ================= Demo 2: Circular queue ================= */
+const N=6,ring=$('#ring');let arr,front,count,vc;
+const slotEls=[];
+for(let i=0;i<N;i++){const a=(-90+i*360/N)*Math.PI/180,R=130;const s=document.createElement('div');s.className='slot';
+  s.style.left=(180+R*Math.cos(a))+'px';s.style.top=(180+R*Math.sin(a))+'px';s.innerHTML='<b></b><span class="ix">'+i+'</span><span class="tg"></span>';
+  ring.append(s);slotEls.push(s)}
+function drawC(msg,hot){
+  const r=(front+count-1+N)%N;
+  slotEls.forEach((s,i)=>{
+    s.querySelector('b').textContent=arr[i]??'';s.classList.toggle('full',arr[i]!=null);
+    if(arr[i]!=null)s.style.setProperty('--c',PAL[(arr[i]/10|0)%PAL.length]);
+    let t='';if(count>0){if(i===front&&i===r)t='FRONT·REAR';else if(i===front)t='FRONT';else if(i===r)t='REAR'}
+    s.querySelector('.tg').textContent=t;s.classList.toggle('isF',t.includes('FRONT'));s.classList.toggle('isR',t.includes('REAR'));
+    if(i===hot){s.classList.remove('pop');void s.offsetWidth;s.classList.add('pop')}
+  });
+  $('#cc').textContent=count+'/'+N;
+  $('#sc').innerHTML=msg+`<small>front = ${front} &nbsp;|&nbsp; rear = ${count?r:'-'} &nbsp;|&nbsp; size = ${count}</small>`;
+}
+function enqC(){if(count===N){drawC('Circular queue is full');return false}
+  const wrapped=front+count>=N,pos=(front+count)%N;arr[pos]=vc;count++;
+  drawC(`Enqueue(${vc}) goes to slot ${pos}`+(wrapped?'. Wrapped around to the beginning!':''),pos);vc+=10;return true}
+function deqC(){if(!count){drawC('Circular queue is empty');return}
+  const v=arr[front];arr[front]=null;const old=front;front=(front+1)%N;count--;drawC(`Dequeue(): removed ${v} from slot ${old}`,-1)}
+function resetC(){arr=Array(N).fill(null);front=0;count=0;vc=10;drawC('Circular queue is empty')}
+let busyC=false;
+$('#ec').onclick=()=>{if(!busyC)enqC()};$('#dc').onclick=()=>{if(!busyC)deqC()};$('#rc').onclick=()=>{if(!busyC)resetC()};
+$('#wc').onclick=async()=>{if(busyC)return;busyC=true;resetC();await sleep(500);
+  for(let i=0;i<N;i++){enqC();await sleep(450)}
+  await sleep(500);deqC();await sleep(700);deqC();await sleep(900);enqC();await sleep(800);enqC();busyC=false};
+resetC();
+
+/* ================= Demo 3: Priority queue ================= */
+const pq=$('#pq'),PMAX=7;let pl=0,busyP=false;
+function stP(m){$('#sp').innerHTML=m}
+function mkP(l,p){const d=document.createElement('div');d.className='blk enter p'+p;d.dataset.p=p;d.innerHTML='<b>'+l+'</b><u>P'+p+'</u>';return d}
+function enqP(p){if(live(pq).length>=PMAX){stP('Queue is full');return false}
+  const l=String.fromCharCode(65+pl++%26);pq.append(mkP(l,p));stP(`Enqueue(${l}, priority ${p})`);return true}
+async function deqP(){const l=live(pq);if(!l.length){stP('Queue is empty');return}
+  let best=l[0];l.forEach(b=>{if(+b.dataset.p<+best.dataset.p)best=b});
+  best.classList.add('pick');stP(`Highest priority is ${best.textContent.slice(0,1)} (P${best.dataset.p}), so it is served first`);
+  await sleep(1100);best.classList.remove('pick','enter');best.classList.add('leave');setTimeout(()=>best.remove(),500)}
+$('#ep').onclick=()=>{if(!busyP)enqP(+$('#pp').value)};
+$('#dp').onclick=async()=>{if(busyP)return;busyP=true;await deqP();busyP=false};
+$('#rp').onclick=()=>{if(busyP)return;pq.innerHTML='';pl=0;stP('Queue is empty')};
+$('#xp').onclick=async()=>{if(busyP)return;busyP=true;pq.innerHTML='';pl=0;
+  for(const p of [3,2,1,2]){enqP(p);await sleep(600)}await sleep(500);await deqP();busyP=false};
+stP('Queue is empty. Pick a priority and enqueue');
+
+/* ================= Demo 4: Deque ================= */
+const dq=$('#dq'),DMAX=7;
+function stD(m){const n=live(dq).length;$('#sd').innerHTML=m+`<small>size = ${n}</small>`}
+const rnd=()=>Math.floor(Math.random()*90+10);
+function addD(front){if(live(dq).length>=DMAX){stD('Deque is full');return}const v=rnd();put(dq,v,front);stD(front?`insertFront(${v})`:`insertRear(${v})`)}
+function delD(front){const l=live(dq);if(!l.length){stD('Deque is empty');return}const b=front?l[0]:l[l.length-1];const v=b.textContent;drop(b,dq);stD(front?`deleteFront(): removed ${v}`:`deleteRear(): removed ${v}`)}
+$('#if').onclick=()=>addD(true);$('#ir').onclick=()=>addD(false);
+$('#df').onclick=()=>delD(true);$('#dr').onclick=()=>delD(false);
+$('#rd').onclick=()=>{dq.innerHTML='';stD('Deque is empty')};
+stD('Deque is empty. Insert or delete at either end');
+
+/* ================= start ================= */
+const start=parseInt(location.hash.slice(1))||1;go(Math.min(Math.max(start,1),slides.length)-1);
+</script>
+</body>
+</html>
